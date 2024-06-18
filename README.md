@@ -36,13 +36,14 @@ Each project reflects a commitment to excellence and innovation in cloud computi
 
 ## About Me 👨‍💻
 
-I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems from Northeastern University, expected to graduate in May 2024, with a GPA of 3.45. I have a Bachelor of Technology in Computer Science from GITAM University, India, where I graduated with a GPA of 8.0/10.0.
+I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems from Northeastern University, expected to graduate in May 2024. I have a Bachelor of Technology in Computer Science from GITAM University, India.
 
 ### Professional Experience
 - **AWS Cloud Co-op at Alnylam Pharmaceuticals (Jan 2024 – Jun 2024)**:
   - Automated AWS resource tagging using Lambda Functions and Python, significantly increasing efficiency in infrastructure management.
-  - Designed and implemented CI/CD pipelines using Docker and AWS CodePipeline, enhancing deployment frequency and release quality.
-  - Researched and deployed Data Loss Prevention (DLP) strategies to mitigate data breach risks and ensure data security.
+  - Designed and implemented CI/CD pipelines using Docker and AWS CodePipeline, automating deployments and enhancing release quality.
+  - Implemented a CDN setup for optimized content delivery and reduced latency for global users using AWS CloudFront and Lambda.
+  - Researched ways to develop a Developed a comprehensive Configuration Management Database (CMDB) using AWS Config, enabling streamlined asset tracking, configuration compliance, and enhanced visibility across a multi-account AWS environment. 
   
 - **Associate Software Engineer at Hexaware Technologies (Jun 2021 – Aug 2022)**:
   - Established a demand-based, dynamically scaling AWS infrastructure using Terraform and Ansible, optimizing resource utilization.
