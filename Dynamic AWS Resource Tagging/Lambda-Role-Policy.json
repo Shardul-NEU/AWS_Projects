@@ -1,0 +1,46 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "VisualEditor0",
+			"Effect": "Allow",
+			"Action": [
+				"autoscaling:CreateOrUpdateTags",
+				"backup:TagResource",
+				"cloudtrail:AddTags",
+				"cloudwatch:TagResource",
+				"config:TagResource",
+				"dynamodb:TagResource",
+				"ec2:CreateTags",
+				"ecr:TagResource",
+				"ecs:TagResource",
+				"eks:TagResource",
+				"elasticfilesystem:TagResource",
+				"elasticloadbalancing:AddTags",
+				"es:AddTags",
+				"events:TagResource",
+				"guardduty:TagResource",
+				"iam:TagPolicy",
+				"iam:TagRole",
+				"iam:TagSAMLProvider",
+				"iam:TagServerCertificate",
+				"iam:TagUser",
+				"kendra:TagResource",
+				"kms:TagResource",
+				"lambda:TagResource",
+				"logs:CreateLogGroup",
+				"logs:CreateLogStream",
+				"logs:PutLogEvents",
+				"networkmanager:TagResource",
+				"rds:AddTagsToResource",
+				"route53:ChangeTagsForResource",
+				"route53resolver:TagResource",
+				"s3:PutBucketTagging",
+				"secretsmanager:TagResource",
+				"sns:TagResource",
+				"sqs:TagQueue"
+			],
+			"Resource": "*"
+		}
+	]
+}

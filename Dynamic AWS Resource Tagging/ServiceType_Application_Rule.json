@@ -1,0 +1,8 @@
+{
+  "source": ["aws.lambda", "aws.dynamodb", "aws.secretsmanager", "aws.cloudwatch", "aws.ecs", "aws.ecr", "aws.fsx", "aws.kendra", "aws.elasticsearch", "aws.config", "aws.backup", "aws.kms", "aws.cloudtrail", "aws.guardduty", "aws.eks", "aws.sqs", "aws.events", "aws.sns", "aws.ses", "aws.monitoring"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["lambda.amazonaws.com", "dynamodb.amazonaws.com", "secretsmanager.amazonaws.com", "cloudwatch.amazonaws.com", "ecs.amazonaws.com", "ecr.amazonaws.com", "fsx.amazonaws.com", "kendra.amazonaws.com", "es.amazonaws.com", "config.amazonaws.com", "backup.amazonaws.com", "kms.amazonaws.com", "cloudtrail.amazonaws.com", "guardduty.amazonaws.com", "eks.amazonaws.com", "sqs.amazonaws.com", "events.amazonaws.com", "sns.amazonaws.com", "ses.amazonaws.com", "monitoring.amazonaws.com"],
+    "eventName": ["CreateDBInstance", "CreateDBSnapshot", "CreateDBCluster", "CreateDBClusterSnapshot", "CreateDBClusterEndpoint", "CreateDBParameterGroup", "CreateDBOptionGroup", "CreateDBSecurityGroup", "CreateDBSubnetGroup", "CreateFunction20150331", "CreateTable", "CreateFileSystem", "CreateCluster", "CreateRepository", "CreateAutoScalingGroup", "CreateIndex", "CreateDataSource", "CreateFaq", "CreateElasticsearchDomain", "CreateOutboundCrossClusterSearchConnection", "PutConfigurationRecorder", "PutDeliveryChannel", "CreateBackupPlan", "CreateBackupVault", "CreateKey", "PutDashboard", "CreateCoreNetwork", "CreateTrail", "CreateDetector", "CreateQueue", "CreateSecret", "PutRule", "CreateTopic", "CreateConfigurationSet", "PutMetricAlarm"]
+  }
+}

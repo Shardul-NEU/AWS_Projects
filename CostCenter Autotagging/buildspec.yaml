@@ -1,0 +1,42 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "Installing Python dependencies..."
+      - pip install boto3 || (ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) && echo "Failed to install dependencies, continuing..." && aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Failed to install dependencies in the install phase of CostCenter_Autotagging CodeBuild for account $ACCOUNT_ID.")
+      
+  pre_build:
+    commands:
+      - echo Entering the prebuild phase
+      - |
+        aws iam attach-role-policy --role-name $EXECUTION_ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AdministratorAccess &&
+        echo "AdministratorAccess policy attached" ||
+        (ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) && echo "Failed to attach policy, attempting to continue..." && aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Failed to attach policy in the pre_build phase of CostCenter_Autotagging CodeBuild for account $ACCOUNT_ID.")
+      - sleep 10
+      - echo "proceeding after delay" 
+  build:
+    commands:
+      - |
+        echo Running the Python script...
+        python CostCenter_Autotag.py ||
+        (ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) && echo "Script execution failed, continuing to post_build..." && aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Script execution failed in the build phase of CostCenter_Autotagging CodeBuild for account $ACCOUNT_ID.")
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - |
+        echo "Deleting older builds from the current CodeBuild project..."
+        PROJECT_NAME=$(echo $CODEBUILD_BUILD_ID | cut -d ':' -f 1)
+        BUILD_IDS_TO_DELETE=$(aws codebuild list-builds-for-project --project-name $PROJECT_NAME --query 'ids[1:]' --output text)
+        if [ -n "$BUILD_IDS_TO_DELETE" ]; then
+          aws codebuild batch-delete-builds --ids $BUILD_IDS_TO_DELETE ||
+          (ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) && echo "Failed to delete older builds. Manual intervention required." && aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Failed to delete older builds in the post_build phase of CodeBuild for project $PROJECT_NAME, account $ACCOUNT_ID.")
+        else
+          echo "No older builds to delete."
+        fi
+      - |
+        aws iam detach-role-policy --role-name $EXECUTION_ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AdministratorAccess &&
+        echo "AdministratorAccess policy detached." ||
+        (ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) && echo "Failed to detach AdministratorAccess policy. Manual intervention required." && aws sns publish --topic-arn $SNS_TOPIC_ARN --message "Failed to detach AdministratorAccess policy in the post_build phase of CodeBuild for project $PROJECT_NAME, account $ACCOUNT_ID. MANUAL INTERVENTION REQUIRED")

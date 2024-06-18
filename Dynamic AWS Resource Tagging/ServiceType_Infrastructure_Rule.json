@@ -1,0 +1,8 @@
+{
+  "source": ["aws.s3", "aws.ec2", "aws.rds", "aws.elasticfilesystem", "aws.elasticloadbalancing", "aws.autoscaling", "aws.route53", "aws.route53resolver", "aws.vpc", "aws.iam"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["s3.amazonaws.com", "ec2.amazonaws.com", "rds.amazonaws.com", "elasticfilesystem.amazonaws.com", "elasticloadbalancing.amazonaws.com", "autoscaling.amazonaws.com", "route53.amazonaws.com", "route53resolver.amazonaws.com", "iam.amazonaws.com"],
+    "eventName": ["CreateBucket", "RunInstances", "CreateVolume", "CreateSnapshot", "CreateNetworkInterface", "CreateSecurityGroup", "CreateImage", "CreatePlacementGroup", "CreateNatGateway", "CreateInternetGateway", "CreateRouteTable", "CreateDhcpOptions", "CreateVpc", "CreateSubnet", "CreateVpnConnection", "CreateVpnGateway", "CreateTransitGateway", "CreateTransitGatewayAttachment", "CreateVpcPeeringConnection", "CreateLaunchTemplate", "CreateEgressOnlyInternetGateway", "CreateCustomerGateway", "CreateTrafficMirrorTarget", "CreateTrafficMirrorSession", "CreateTrafficMirrorFilter", "AllocateAddress", "CreateLoadBalancer", "CreateTargetGroup", "CreateHostedZone", "CreateHealthCheck", "CreateResolverEndpoint", "CreateUser", "CreateRole"]
+  }
+}

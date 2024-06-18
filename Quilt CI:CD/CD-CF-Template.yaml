@@ -1,0 +1,717 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation template for setting up CI/CD pipeline infrastructure for itinfra releases.
+
+Parameters:
+  AccountName:
+    Type: String
+    Description: "The prefix for account specific resource names, ** lower case, no spaces **"
+  ApprovalEmail:
+    Type: String
+    Description: "Enter the EMAIL to send approval notifications"
+
+Resources: 
+  codeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryDescription: Stores itinfra release code files and documentation.
+      RepositoryName: !Sub ${AccountName}-TF-StackUpdates-Release-Repo
+
+  ArtifactS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AccountName}-tf-stackupdate-cp-artifact-store
+
+  TFPlanReadableBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AccountName}-tf-stackupdate-tfplan-readable-bucket
+  
+  TFPlanBinaryBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AccountName}-tf-stackupdate-tfplan-binary-bucket
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties: 
+      ArtifactStore: 
+          Location: !Ref ArtifactS3Bucket
+          Type: S3
+      ExecutionMode: SUPERSEDED
+      Name: !Sub "${AccountName}-TF-StackUpdates-CI-CD-Codepipeline"
+      PipelineType: V2
+      RoleArn: !GetAtt CodePipelineExecutionRole.Arn
+      Stages: 
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              RunOrder: 1
+              Configuration:
+                BranchName: main
+                PollForSourceChanges: 'false'
+                RepositoryName: !GetAtt codeCommitRepository.Name
+              OutputArtifacts:
+                - Name: SourceArtifact
+              Namespace: SourceVariables
+
+        - Name: AdminAccess
+          Actions:
+            - Name: Access_Approval_Request
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              Configuration:
+                NotificationArn: !GetAtt SNSTopic.TopicArn
+                CustomData: !Sub "Please grant admin access approval to the ${AccountName}-TF-Stack-Update-CI/CD-CodePipeline."
+              RunOrder: 1
+
+            - Name: Grant_Admin_Access
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: 1
+              Configuration:
+                FunctionName: !Ref PermissionsLambdaFunction
+                UserParameters: !Sub |
+                  {
+                    "role_name": "${CodeBuildServiceRole}",
+                    "pipeline_stage": "grant_access"
+                  }
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: Grant_Access_lambda_output
+              RunOrder: 2
+
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref TFPlanBuildProject
+              Namespace: BuildVariables
+              RunOrder: 1
+
+        - Name: TF_Apply_Approval
+          Actions:
+            - Name: TF_Apply_Approval_Request
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              RunOrder: 1
+
+            - Name: TF_Approval_Notification
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: 1
+              Configuration:
+                FunctionName: !Ref PermissionsLambdaFunction
+                UserParameters: '{"pipeline_stage": "Approval"}'
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: Approval_artifact
+              RunOrder: 1
+
+        - Name: Terraform-apply-stage
+          Actions:
+            - Name: Terraform-Apply-Stage
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: tf-apply-artifact
+              Configuration:
+                ProjectName: !Ref TFApplyBuildProject
+              RunOrder: 1
+
+        - Name: RevokeAdminAccess
+          Actions:
+            - Name: Revoke_Access
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: 1
+              Configuration:
+                FunctionName: !Ref PermissionsLambdaFunction
+                UserParameters: !Sub |
+                  {
+                    "role_name": "${CodeBuildServiceRole}",
+                    "pipeline_stage": "revoke_access"
+                  }
+              InputArtifacts:
+                - Name: tf-apply-artifact
+              OutputArtifacts:
+                - Name: Final_Stage_Output
+              RunOrder: 1
+
+  PermissionsLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: !Sub "${AccountName}-TF-Stack-Update-PermissionsLambda"
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !GetAtt SNSTopic.TopicArn
+          BUCKET_NAME: !Ref TFPlanReadableBucket
+          CONSOLE_LINK: !Sub "https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${AccountName}-TF-StackUpdates-CI-CD-Codepipeline/view?region=us-east-1"
+
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from botocore.exceptions import ClientError
+
+          # Initialize AWS clients
+          iam_client = boto3.client('iam')
+          codepipeline_client = boto3.client('codepipeline')
+          sns_client = boto3.client('sns')
+          s3_client = boto3.client('s3')
+
+          # Configuration variables
+          admin_policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+          sns_topic_arn = os.environ['SNS_TOPIC_ARN']
+          bucket_name = os.environ['BUCKET_NAME']
+          prefix = 'project/'
+
+          def get_latest_tfplan_link(bucket, prefix=''):
+              try:
+                  response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+                  print("S3 list_objects_v2 response:", response)
+                  objects = sorted(response.get('Contents', []), key=lambda obj: obj['LastModified'], reverse=True)
+                  if objects:
+                      latest_object_key = objects[0]['Key']
+                      s3_console_link = f"https://s3.console.aws.amazon.com/s3/object/{bucket_name}?prefix={latest_object_key}"
+                      presigned_url = s3_client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': latest_object_key}, ExpiresIn=172800)
+                      print(f"Generated presigned URL: {presigned_url}")
+                      return presigned_url
+                  else:
+                      print("No objects found in S3 bucket with the specified prefix.")
+                      return None
+              except ClientError as e:
+                  print(f"Error fetching the latest tfplan file from S3: {e}")
+                  return None
+
+          def get_latest_tfplan_console_link(bucket, prefix=''):
+              try:
+                  response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+                  print("S3 list_objects_v2 response:", response)
+                  objects = sorted(response.get('Contents', []), key=lambda obj: obj['LastModified'], reverse=True)
+                  if objects:
+                      latest_object_key = objects[0]['Key']
+                      s3_console_link = f"https://s3.console.aws.amazon.com/s3/object/{bucket_name}?prefix={latest_object_key}"
+                      return s3_console_link
+                  else:
+                      print("No objects found in S3 bucket with the specified prefix.")
+                      return None
+              except ClientError as e:
+                  print(f"Error fetching the latest tfplan file from S3: {e}")
+                  return None
+
+          def grant_admin_access(role_name):
+              print(f"Attempting to attach AdministratorAccess policy to role: {role_name}")
+              iam_client.attach_role_policy(RoleName=role_name, PolicyArn=admin_policy_arn)
+              print("AdministratorAccess policy attached successfully.")
+              return "AdministratorAccess policy attached"
+
+          def revoke_admin_access(role_name):
+              print(f"Attempting to detach AdministratorAccess policy from role: {role_name}")
+              iam_client.detach_role_policy(RoleName=role_name, PolicyArn=admin_policy_arn)
+              print("AdministratorAccess policy detached successfully.")
+              return "AdministratorAccess policy detached"
+
+          def send_approval_notification(s3_plan_link, s3_console_link):
+              console_link = os.environ['CONSOLE_LINK']
+              message = f"Approval Required: Please review the Terraform plan before applying.\nTerraform Plan: {s3_plan_link}\n Terraform Plan Console Link {s3_console_link}\n Approve or Reject Pipeline: {console_link} "
+              try:
+                  response = sns_client.publish(TopicArn=sns_topic_arn, Message=message)
+                  print("SNS publish response:", response)
+              except ClientError as e:
+                  print(f"Failed to send SNS notification. Error: {e}")
+
+          def signal_codepipeline_success(job_id):
+              codepipeline_client.put_job_success_result(jobId=job_id)
+              print("Signaled success to CodePipeline.")
+
+          def signal_codepipeline_failure(job_id, message):
+              codepipeline_client.put_job_failure_result(jobId=job_id, failureDetails={'message': message, 'type': 'JobFailed'})
+              print("Signaled failure to CodePipeline.")
+
+          def lambda_handler(event, context):
+              print("Received event:", json.dumps(event, indent=2))
+              role_name = None
+              
+              try:
+                  job_id = event["CodePipeline.job"]["id"]
+                  user_params_str = event["CodePipeline.job"]["data"]["actionConfiguration"]["configuration"]["UserParameters"]
+                  user_params = json.loads(user_params_str)
+
+                  role_name = user_params.get('role_name')
+                  pipeline_stage = user_params.get('pipeline_stage')
+                  
+                  print(f"Processing pipeline stage: {pipeline_stage}")
+                  if pipeline_stage == 'grant_access':
+                      grant_admin_access(role_name)
+                  elif pipeline_stage == 'revoke_access':
+                      revoke_admin_access(role_name)
+                  elif pipeline_stage == 'Approval':
+                      s3_plan_link = get_latest_tfplan_link(bucket_name, prefix)
+                      s3_console_link = get_latest_tfplan_console_link(bucket_name, prefix)
+                      if s3_plan_link and s3_console_link:
+                          send_approval_notification(s3_plan_link, s3_console_link)
+                      else:
+                          raise ValueError('Failed to fetch the latest tfplan file link.')
+                  else:
+                      raise ValueError("Invalid pipeline stage")
+
+                  signal_codepipeline_success(job_id)
+              except Exception as e:
+                  print(f"Error occurred: {e}")
+                  if role_name:
+                      try: revoke_admin_access(role_name)
+                      except Exception as revoke_exception:
+                          print(f"Failed to a revoke admin access :{revoke_exception}")
+                  if 'job_id' in locals():
+                      signal_codepipeline_failure(job_id, str(e))
+                  return {'statusCode': 400, 'body': json.dumps(f"Error occurred: {e}")}
+
+              return {'statusCode': 200, 'body': json.dumps("Lambda function completed successfully.")}
+
+      Runtime: python3.8
+      Timeout: 900  
+
+  TFPlanBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub "${AccountName}-Release-TFStack-Update-TFPlan-Project"
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: READABLE_TF_PLAN_BUCKET
+            Value: !Ref TFPlanReadableBucket
+          - Name: BINARY_TF_PLAN_BUCKET
+            Value: !Ref TFPlanBinaryBucket
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        Type: CODEPIPELINE
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+        S3Logs:
+          Status: DISABLED
+      TimeoutInMinutes: 480  
+      QueuedTimeoutInMinutes: 240 
+      Triggers:
+        Webhook: false  
+
+  TFApplyBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub "${AccountName}-Release-TFStack-Update-TFApply-Project"
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: BINARY_TF_PLAN_BUCKET
+            Value: !Ref TFPlanBinaryBucket
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: Post_approval_buildSpec.yml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+        S3Logs:
+          Status: DISABLED
+      TimeoutInMinutes: 480  
+      QueuedTimeoutInMinutes: 240 
+      Triggers:
+        Webhook: false  
+        
+  SNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      TopicName: !Sub "${AccountName}-Release-TFStack-Update-SNSTopic"
+
+  EmailSubscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      Protocol: email
+      Endpoint: !Sub "${ApprovalEmail}"
+      TopicArn: !Ref SNSTopic
+
+  CodeCommitEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub "${AccountName}-Release-TF-Update-Pipeline-Trigger"  
+      EventPattern:
+        source:
+          - "aws.codecommit"
+        detail-type:
+          - "CodeCommit Repository State Change"
+        resources:
+          - !GetAtt codeCommitRepository.Arn
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - main
+      Targets:
+        - Arn: !Join ['', ['arn:aws:codepipeline:', !Ref AWS::Region, ':', !Ref AWS::AccountId, ':', !Ref CodePipeline]]
+          RoleArn: !GetAtt PipelineTriggerRole.Arn
+          Id: "CodePipelineTarget"
+
+  RevokePermissionsFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt RevokePermissionLambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import os
+
+          # Set up logging
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def handler(event, context):
+              iam = boto3.client('iam')
+              policy_arn = 'arn:aws:iam::aws:policy/AdministratorAccess'
+              role_name = os.environ['ROLE_NAME'] 
+
+              try:
+                  # Attempt to detach the policy
+                  response = iam.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+                  logger.info(f"Successfully detached policy {policy_arn} from role {role_name}.")
+                  return {
+                      'statusCode': 200,
+                      'body': f"Successfully detached policy {policy_arn} from role {role_name}."
+                  }
+              except Exception as e:
+                  logger.error(f"Failed to detach policy from role: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': f"Failed to detach policy from role: {str(e)}"
+                  }
+      Runtime: python3.8
+      Timeout: 30
+      Environment:
+        Variables:
+          ROLE_NAME: !Sub "${AccountName}Release-TFStackUpdate-CodeBuildRole"
+
+  RevokePermissionLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/IAMFullAccess'
+
+  LambdaInvokePermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt RevokePermissionsFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt PipelineFailureEventRule.Arn
+
+  PipelineFailureEventRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Description: Event Rule to monitor pipeline failures.
+      EventPattern:
+        source:
+          - aws.codepipeline
+        detail-type:
+          - CodePipeline Pipeline Execution State Change
+        detail:
+          state:
+            - FAILED
+          pipeline:
+            - !Ref CodePipeline
+      Targets:
+        - Id: TargetFunction
+          Arn: !GetAtt RevokePermissionsFunction.Arn
+
+  PipelineTriggerRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${AccountName}-Release-TFStack-Update-Trigger-Role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "events.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess"
+
+
+
+  CodePipelineExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AccountName}CodePipelineExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [codepipeline.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonCloudWatchRUMFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+      Policies:
+        - PolicyName: AdditionalPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - iam:PassRole
+                Resource: '*'
+                Effect: Allow
+                Condition:
+                  StringEqualsIfExists:
+                    iam:PassedToService:
+                      - cloudformation.amazonaws.com
+                      - elasticbeanstalk.amazonaws.com
+                      - ec2.amazonaws.com
+                      - ecs-tasks.amazonaws.com
+              - Action:
+                  - codecommit:CancelUploadArchive
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:GetRepository
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetApplication
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetDeploymentConfig
+                  - codedeploy:RegisterApplicationRevision
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - codestar-connections:UseConnection
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - elasticbeanstalk:*
+                  - ec2:*
+                  - elasticloadbalancing:*
+                  - autoscaling:*
+                  - cloudwatch:*
+                  - s3:*
+                  - sns:*
+                  - cloudformation:*
+                  - rds:*
+                  - sqs:*
+                  - ecs:*
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - lambda:InvokeFunction
+                  - lambda:ListFunctions
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - opsworks:CreateDeployment
+                  - opsworks:DescribeApps
+                  - opsworks:DescribeCommands
+                  - opsworks:DescribeDeployments
+                  - opsworks:DescribeInstances
+                  - opsworks:DescribeStacks
+                  - opsworks:UpdateApp
+                  - opsworks:UpdateStack
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuildBatches
+                  - codebuild:StartBuildBatch
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - devicefarm:ListProjects
+                  - devicefarm:ListDevicePools
+                  - devicefarm:GetRun
+                  - devicefarm:GetUpload
+                  - devicefarm:CreateUpload
+                  - devicefarm:ScheduleRun
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - servicecatalog:ListProvisioningArtifacts
+                  - servicecatalog:CreateProvisioningArtifact
+                  - servicecatalog:DescribeProvisioningArtifact
+                  - servicecatalog:DeleteProvisioningArtifact
+                  - servicecatalog:UpdateProduct
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - cloudformation:ValidateTemplate
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - ecr:DescribeImages
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - states:DescribeExecution
+                  - states:DescribeStateMachine
+                  - states:StartExecution
+                Resource: '*'
+                Effect: Allow
+              - Action:
+                  - appconfig:StartDeployment
+                  - appconfig:StopDeployment
+                  - appconfig:GetDeployment
+                Resource: '*'
+                Effect: Allow
+
+  CodeBuildServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub "${AccountName}Release-TFStackUpdate-CodeBuildRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'codebuild.amazonaws.com'
+            Action: 'sts:AssumeRole'
+            
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/CloudWatchFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCodeBuildAdminAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/SecretsManagerReadWrite'
+        - 'arn:aws:iam::aws:policy/AmazonEC2FullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess'
+
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSNSFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess'
+        - 'arn:aws:iam::aws:policy/CloudWatchFullAccess'
+        - 'arn:aws:iam::aws:policy/IAMFullAccess'
+  
+Outputs:
+  CodeCommitRepositoryCloneUrlHttp:
+    Description: "HTTP URL to clone the CodeCommit Repository"
+    Value: !GetAtt codeCommitRepository.CloneUrlHttp
+
+  CodeCommitRepositoryCloneUrlSsh:
+    Description: "SSH URL to clone the CodeCommit Repository"
+    Value: !GetAtt codeCommitRepository.CloneUrlSsh
+
+  ArtifactS3BucketName:
+    Description: "Name of the S3 bucket used for storing pipeline artifacts"
+    Value: !Ref ArtifactS3Bucket
+
+  TFPlanReadableBucketName:
+    Description: "Name of the S3 bucket used for storing readable Terraform plans"
+    Value: !Ref TFPlanReadableBucket
+
+  TFPlanBinaryBucketName:
+    Description: "Name of the S3 bucket used for storing binary Terraform plans"
+    Value: !Ref TFPlanBinaryBucket
+
+  CodePipelineURL:
+    Description: "URL to access the CI/CD CodePipeline in AWS Console"
+    Value: !Sub "https://console.aws.amazon.com/codesuite/codepipeline/pipelines/${AccountName}-TF-StackUpdates-CI-CD-Codepipeline/view?region=${AWS::Region}"
+
+  SNSTopicARN:
+    Description: "ARN of the SNS Topic used for notifications"
+    Value: !Ref SNSTopic
+
+  CodePipelineExecutionRoleARN:
+    Description: "ARN of the IAM Role used by CodePipeline"
+    Value: !GetAtt CodePipelineExecutionRole.Arn
+
+  CodeBuildServiceRoleARN:
+    Description: "ARN of the IAM Role used by CodeBuild"
+    Value: !GetAtt CodeBuildServiceRole.Arn
+
+  LambdaExecutionRoleARN:
+    Description: "ARN of the IAM Role used by Lambda Functions"
+    Value: !GetAtt LambdaExecutionRole.Arn

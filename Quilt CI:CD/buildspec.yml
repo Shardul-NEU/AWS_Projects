@@ -1,0 +1,70 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      # Update and install unzip, wget
+      - apt-get update && apt-get install -y unzip wget jq curl
+      # Check if Terraform is installed and matches the desired version, if not install/upgrade it
+      - |
+        TERRAFORM_VERSION="1.1.0"
+        if terraform version | grep -q "Terraform v${TERRAFORM_VERSION}"; then
+          echo "Terraform v${TERRAFORM_VERSION} is already installed."
+        else
+          echo "Installing Terraform v${TERRAFORM_VERSION}."
+          wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+          unzip -o terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /usr/local/bin/
+          rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+        fi
+      # Fetch the latest commit SHA from the specified branch and update main.tf
+      - |
+        NEW_TEMPLATE_LINK="https://holdscicdtestcode.s3.amazonaws.com/s3_bucket_template.yaml"
+        REPO="quiltdata/iac"
+        BRANCH="main"
+        FILE_PATH="./tempmain.txt"
+        
+        SHA=$(curl -s "https://api.github.com/repos/$REPO/commits/$BRANCH" | jq -r '.sha')
+        if [ -z "$SHA" ]; then
+          echo "Failed to fetch commit SHA"
+          exit 1
+        fi
+        sed -i "s/\(source\s*=\s*\"github.com\/quiltdata\/iac\/\/modules\/quilt?ref=\).*\"/\1$SHA\"/" $FILE_PATH
+        if [ $? -ne 0 ]; then
+          echo "Failed to update main.tf"
+          exit 1
+        fi
+        echo "main.tf updated with latest commit SHA: $SHA"
+      - |
+        TEMPLATE_FILE="templatefile.yaml"
+        curl -o $TEMPLATE_FILE $NEW_TEMPLATE_LINK
+
+  pre_build:
+    commands:
+      # Initialize Terraform
+      - terraform init
+
+  build:
+    commands:
+      # Generate a Terraform plan in a human-readable format and save it to a file
+      - terraform plan -no-color > plan-output.txt
+      # Also, generate a binary plan to be applied later
+      - terraform plan -out=tfplan
+      # Copy the human-readable plan file to an S3 bucket
+      - aws s3 cp plan-output.txt s3://${READABLE_TF_PLAN_BUCKET}/project/plan-output.txt
+     
+
+  post_build:
+    commands:
+      - echo "Terraform plan completed and uploaded to S3."
+
+artifacts:
+  files:
+    - templatefile.yaml
+    - Post_approval_buildSpec.yml
+    - main.tf
+    - tfplan 
+    - .terraform.lock.hcl
+    
+cache:
+  paths:
+    - '.terraform/**/*'

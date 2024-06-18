@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CostCenter Auto-tagging architecture for AWS resources.
+
+Parameters:
+  CostCenterTagValue:
+    Description: Value for the costcenter tag
+    Type: String
+     
+  SNSTopicArn:
+    Description: SNS topic arn of Versetal Alarm, its in format "Account-Versetal-Alarm".
+    Type: String
+    Default: "***Enter Versetal Alarm SNS topic here***"
+    
+
+Resources:
+  MyCodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: CostCenter-Autotag-Repo-CFStack
+      RepositoryDescription: Repository for storing Costcenter auto-tagging scripts used in codebuild
+
+  MyCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: Costcenter-Autotag-CFStack
+      Description: CodeBuild project for auto-tagging AWS resources based on CostCenter.
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        ComputeType: BUILD_GENERAL1_SMALL
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: TAG_KEY
+            Value: CostCenter
+            Type: PLAINTEXT
+          - Name: TAG_VALUE
+            Value: !Ref CostCenterTagValue
+            Type: PLAINTEXT
+          - Name: EXECUTION_ROLE_NAME
+            Value: !Ref CodeBuildServiceRole
+            Type: PLAINTEXT
+          - Name: SNS_TOPIC_ARN
+            Value: !Ref SNSTopicArn
+            Type: PLAINTEXT
+      Source:
+        Type: CODECOMMIT
+        Location: !GetAtt MyCodeCommitRepository.CloneUrlHttp
+        GitCloneDepth: 1
+        BuildSpec: buildspec.yaml
+      TimeoutInMinutes: 420
+      QueuedTimeoutInMinutes: 480
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Sub /aws/codebuild/Costcenter-Autotag-CFStack
+          StreamName: Costcenter-Autotag-Stream-CFStack
+        S3Logs:
+          Status: DISABLED
+      
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/IAMFullAccess
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+      Policies:
+        - PolicyName: CodeBuildBasePolicy-Costcenter-Autotag-CFStack
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Resource:
+                  - "*"
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Effect: Allow
+                Resource:
+                  - arn:aws:s3:::codepipeline-us-east-1-*
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+              - Effect: Allow
+                Resource:
+                  - "*"
+                Action:
+                  - codecommit:GitPull
+              - Effect: Allow
+                Resource:
+                  - "*"
+                Action:
+                  - codebuild:CreateReportGroup
+                  - codebuild:CreateReport
+                  - codebuild:UpdateReport
+                  - codebuild:BatchPutTestCases
+                  - codebuild:BatchPutCodeCoverages
+
+  MyEventBridgeScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: CostCenter-Autotag-Scheduler-CFStack
+      Description: This schedule builds the autotagging codebuild project at specified intervals
+      ScheduleExpression: cron(00 20 ? * SAT *)
+      ScheduleExpressionTimezone: America/New_York
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      State: ENABLED
+      Target:
+          Arn: !GetAtt MyCodeBuildProject.Arn
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal: 
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EventBridgeInvokeCodeBuild-CFStack
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: codebuild:StartBuild
+                Resource: !GetAtt MyCodeBuildProject.Arn
+
+  CodeBuildFailureNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      Name: CodeBuildFailureNotificationRule
+      DetailType: FULL
+      EventTypeIds:
+        - "codebuild-project-build-state-failed"
+      Resource: !GetAtt MyCodeBuildProject.Arn
+      Targets:
+        - TargetAddress:
+            Ref: SNSTopicArn
+          TargetType: "SNS" 
+                
+
+Outputs:
+  RepositoryURL:
+    Description: URL of the created CodeCommit repository
+    Value: !GetAtt MyCodeCommitRepository.CloneUrlHttp
+  BuildProjectName:
+    Description: Name of the CodeBuild project
+    Value: !Ref MyCodeBuildProject
+ 

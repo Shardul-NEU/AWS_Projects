@@ -1,0 +1,12 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Sid": "AllowPutEventsFromAnyEventBus",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "events.amazonaws.com"
+      },
+      "Action": "events:PutEvents",
+      "Resource": "arn:aws:events:us-east-1:221424630965:event-bus/s3-autotagging-central-eventbus"
+    }]
+  }
