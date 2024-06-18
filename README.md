@@ -1,10 +1,12 @@
-# AWS Cloud Co-Op Projects
+# AWS Cloud Co-Op Projects 🌩️
 
 Welcome to the repository showcasing the projects completed during my AWS cloud co-op at Alnylam Pharmaceuticals. This repository includes a collection of innovative solutions designed to enhance cloud operations, automate resource management, and improve security within the AWS environment.
 
+![AWS](https://img.shields.io/badge/AWS-Cloud-orange) ![Automation](https://img.shields.io/badge/Automation-Success-brightgreen)
+
 ---
 
-## Table of Contents
+## Table of Contents 📚
 
 1. [Introduction](#introduction)
 2. [About Me](#about-me)
@@ -20,7 +22,7 @@ Welcome to the repository showcasing the projects completed during my AWS cloud 
 
 ---
 
-## Introduction
+## Introduction 🌟
 
 As a part of my co-op at Alnylam Pharmaceuticals, I had the opportunity to work on several critical projects aimed at streamlining AWS resource management, automating tagging processes, and implementing robust CI/CD pipelines. This repository is organized into three main projects, each detailed in its own folder:
 
@@ -32,7 +34,7 @@ Each project reflects a commitment to excellence and innovation in cloud computi
 
 ---
 
-## About Me
+## About Me 👨‍💻
 
 I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems from Northeastern University, expected to graduate in May 2024, with a GPA of 3.45. I have a Bachelor of Technology in Computer Science from GITAM University, India, where I graduated with a GPA of 8.0/10.0.
 
@@ -58,31 +60,31 @@ I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems fr
   - Terraform Associate
   - Microsoft Azure Fundamentals
 
-### Resume
+### Resume 📄
 
 For a detailed overview of my skills and experiences, you can view my resume [here](./Shardul-Deshmukh-Resume.pdf).
 
 ---
 
-## Contact
+## Contact 📧
 
 For more details, you can reach out to me at [deshmukh.shard@northeastern.edu](mailto:deshmukh.shard@northeastern.edu). You can also connect with me on [LinkedIn](https://www.linkedin.com/in/shardul-deshmukh).
 
 ---
 
-## Navigating the Repository
+## Navigating the Repository 🗂️
 
 This repository is structured to help you easily find detailed information about each project:
 
-- **CostCenter Autotag:** Navigate to the `CostCenter_Autotag` folder for details on the automated cost center tagging solution.
-- **Dynamic AWS Resource Tagging:** Go to the `Dynamic_AWS_Resource_Tagging` folder for insights into automatic resource tagging at creation.
-- **Quilt CI/CD:** Explore the `Quilt_CICD` folder for information on the CI/CD pipeline setup for Quilt releases.
+- **[CostCenter Autotag](./CostCenter_Autotag/README.md)**: Navigate to the `CostCenter_Autotag` folder for details on the automated cost center tagging solution.
+- **[Dynamic AWS Resource Tagging](./Dynamic_AWS_Resource_Tagging/README.md)**: Go to the `Dynamic_AWS_Resource_Tagging` folder for insights into automatic resource tagging at creation.
+- **[Quilt CI/CD](./Quilt_CICD/README.md)**: Explore the `Quilt_CICD` folder for information on the CI/CD pipeline setup for Quilt releases.
 
 Each folder contains a dedicated README file with in-depth information about the project's objectives, approach, challenges, and future scope. Feel free to explore and delve into the technical details.
 
 ---
 
-## Project Highlights
+## Project Highlights 🌐
 
 ### CostCenter Autotag
 
@@ -127,7 +129,7 @@ Each folder contains a dedicated README file with in-depth information about the
 
 ---
 
-## Technologies Used
+## Technologies Used 🛠️
 
 - **AWS Services:** CloudTrail, EventBridge, Lambda, DynamoDB, Resource Explorer, Resource Groups Tagging API, CodePipeline, CodeCommit, CodeBuild, SNS
 - **Programming Languages:** Python, YAML
@@ -135,7 +137,7 @@ Each folder contains a dedicated README file with in-depth information about the
 
 ---
 
-## Learning Outcomes
+## Learning Outcomes 🎓
 
 During this co-op, I gained extensive experience with AWS services and cloud automation. Some key takeaways include:
 
@@ -146,20 +148,20 @@ During this co-op, I gained extensive experience with AWS services and cloud aut
 
 ---
 
-## Acknowledgments
+## Acknowledgments 🙏
 
 A special thanks to Perminder Sandhu and the entire IT team at Alnylam Pharmaceuticals for their continuous support, guidance, and encouragement throughout this journey. Their mentorship was instrumental in the successful completion of these projects.
 
 ---
 
-**Explore the projects to discover how cloud automation can transform enterprise operations and drive efficiency!**
+**Explore the projects to discover how cloud automation can transform enterprise operations and drive efficiency!** 🌟
 
 ---
 
-Feel free to contribute or provide feedback to help improve these solutions. Happy coding!
+Feel free to contribute or provide feedback to help improve these solutions. Happy coding! 🎉
 
 ---
 
-This readme file provides an overview of the significant projects and learnings from my AWS co-op experience, reflecting a commitment to leveraging cloud technologies for organizational excellence.
+This README file provides an overview of the significant projects and learnings from my AWS co-op experience, reflecting a commitment to leveraging cloud technologies for organizational excellence.
 
 ---
