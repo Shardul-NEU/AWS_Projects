@@ -51,15 +51,16 @@ I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems fr
   - Transitioned a monolithic application to microservices architecture, improving scalability and maintainability.
 
 ### Skills
-- **Languages:** Java, Python, C++, SQL, HTML, YAML, Bash, Golang, TypeScript
+- **Languages:** Java, Python, SQL, HTML, YAML, Bash, JavaScript
 - **Cloud:** AWS, Microsoft Azure, Google Cloud Platform (GCP)
 - **DevOps:** Linux, Terraform, Ansible, CI/CD, Docker, Kubernetes, Jenkins, Git
 - **Database:** MySQL, PostgreSQL, MongoDB, DynamoDB, S3
-- **Frameworks:** Express.js, Spring Boot, Django, React, Node.js
+- **Frameworks:** Express.js, Node.js
 - **Certifications:** 
   - AWS Solutions Architect – Associate
   - Terraform Associate
   - Microsoft Azure Fundamentals
+  - AWS Cloud Practitioner
 
 ---
 
