@@ -92,8 +92,6 @@ Each folder contains a dedicated README file with in-depth information about the
 
 ### 🎯 **CostCenter Autotag**
 
-![CostCenter Icon](https://img.icons8.com/emoji/48/000000/dollar-banknote.png)
-
 **Objective:** Automatically tag AWS resources across multiple accounts with a custom cost center tag.
 
 **Key Features:**
@@ -110,8 +108,6 @@ Each folder contains a dedicated README file with in-depth information about the
 
 ### 🔧 **Dynamic AWS Resource Tagging**
 
-![Dynamic Tagging Icon](https://img.icons8.com/emoji/48/000000/label.png)
-
 **Objective:** Automatically tag AWS resources at the time of creation with the user’s email or name.
 
 **Key Features:**
@@ -126,8 +122,6 @@ Each folder contains a dedicated README file with in-depth information about the
 ---
 
 ### 🚀 **Quilt CI/CD**
-
-![CI/CD Icon](https://img.icons8.com/emoji/48/000000/rocket.png)
 
 **Objective:** Automate the deployment of Quilt releases in AWS, minimizing manual intervention.
 
