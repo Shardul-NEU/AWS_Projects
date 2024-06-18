@@ -86,9 +86,13 @@ Each folder contains a dedicated README file with in-depth information about the
 
 ---
 
-## Project Highlights 🌐
+### Project Highlights 🌐
 
-### CostCenter Autotag
+---
+
+### 🎯 **CostCenter Autotag**
+
+![CostCenter Icon](https://img.icons8.com/clouds/100/000000/cost.png)
 
 **Objective:** Automatically tag AWS resources across multiple accounts with a custom cost center tag.
 
@@ -102,7 +106,11 @@ Each folder contains a dedicated README file with in-depth information about the
 
 **Future Scope:** The solution can be expanded to cover more resource types and additional custom tags as needed.
 
-### Dynamic AWS Resource Tagging
+---
+
+### 🔧 **Dynamic AWS Resource Tagging**
+
+![Dynamic Tagging Icon](https://img.icons8.com/color/100/000000/tag.png)
 
 **Objective:** Automatically tag AWS resources at the time of creation with the user’s email or name.
 
@@ -115,7 +123,11 @@ Each folder contains a dedicated README file with in-depth information about the
 
 **Future Scope:** The system can be expanded to automate tagging for a broader range of AWS resources and tags.
 
-### Quilt CI/CD
+---
+
+### 🚀 **Quilt CI/CD**
+
+![CI/CD Icon](https://img.icons8.com/external-flaticons-flat-flat-icons/100/000000/external-pipeline-computer-science-flaticons-flat-flat-icons-2.png)
 
 **Objective:** Automate the deployment of Quilt releases in AWS, minimizing manual intervention.
 
@@ -130,6 +142,7 @@ Each folder contains a dedicated README file with in-depth information about the
 **Future Scope:** Further refinement of the pipeline to support more complex deployment scenarios and additional AWS services.
 
 ---
+
 
 ## Technologies Used 🛠️
 
