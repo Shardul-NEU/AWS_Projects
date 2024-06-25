@@ -16,6 +16,7 @@ Welcome to the repository showcasing the projects completed during my AWS cloud 
     - [CostCenter Autotag](#costcenter-autotag)
     - [Dynamic AWS Resource Tagging](#dynamic-aws-resource-tagging)
     - [Quilt CI/CD](#quilt-cicd)
+    - [CDN Setup](#cdn-setup)
 6. [Technologies Used](#technologies-used)
 7. [Learning Outcomes](#learning-outcomes)
 8. [Acknowledgments](#acknowledgments)
@@ -24,11 +25,12 @@ Welcome to the repository showcasing the projects completed during my AWS cloud 
 
 ## Introduction 🌟
 
-As a part of my co-op at Alnylam Pharmaceuticals, I had the opportunity to work on several critical projects aimed at streamlining AWS resource management, automating tagging processes, and implementing robust CI/CD pipelines. This repository is organized into three main projects, each detailed in its own folder:
+As a part of my co-op at Alnylam Pharmaceuticals, I had the opportunity to work on several critical projects aimed at streamlining AWS resource management, automating tagging processes, and implementing robust CI/CD pipelines. This repository is organized into four main projects, each detailed in its own folder:
 
 - **CostCenter Autotag**
 - **Dynamic AWS Resource Tagging**
 - **Quilt CI/CD**
+- **CDN Setup**
 
 Each project reflects a commitment to excellence and innovation in cloud computing, leveraging AWS technologies to deliver scalable and efficient solutions.
 
@@ -43,7 +45,7 @@ I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems fr
   - Automated AWS resource tagging using Lambda Functions and Python, significantly increasing efficiency in infrastructure management.
   - Designed and implemented CI/CD pipelines using Docker and AWS CodePipeline, automating deployments and enhancing release quality.
   - Implemented a CDN setup for optimized content delivery and reduced latency for global users using AWS CloudFront and Lambda.
-  - Researched ways to develop a Developed a comprehensive Configuration Management Database (CMDB) using AWS Config, enabling streamlined asset tracking, configuration compliance, and enhanced visibility across a multi-account AWS environment. 
+  - Developed a comprehensive Configuration Management Database (CMDB) using AWS Config, enabling streamlined asset tracking, configuration compliance, and enhanced visibility across a multi-account AWS environment. 
   
 - **Associate Software Engineer at Hexaware Technologies (Jun 2021 – Aug 2022)**:
   - Established a demand-based, dynamically scaling AWS infrastructure using Terraform and Ansible, optimizing resource utilization.
@@ -83,6 +85,7 @@ This repository is structured to help you easily find detailed information about
 - **[CostCenter Autotag](./CostCenter_Autotag/README.md)**: Navigate to the `CostCenter_Autotag` folder for details on the automated cost center tagging solution.
 - **[Dynamic AWS Resource Tagging](./Dynamic_AWS_Resource_Tagging/README.md)**: Go to the `Dynamic_AWS_Resource_Tagging` folder for insights into automatic resource tagging at creation.
 - **[Quilt CI/CD](./Quilt_CICD/README.md)**: Explore the `Quilt_CICD` folder for information on the CI/CD pipeline setup for Quilt releases.
+- **[CDN Setup](./CDN_Setup/README.md)**: Check the `CDN_Setup` folder for information on setting up a CDN with AWS CloudFront and S3.
 
 Each folder contains a dedicated README file with in-depth information about the project's objectives, approach, challenges, and future scope. Feel free to explore and delve into the technical details.
 
@@ -139,11 +142,25 @@ Each folder contains a dedicated README file with in-depth information about the
 
 ---
 
+### 🌐 **CDN Setup**
 
+**Objective:** Set up a Content Delivery Network (CDN) using Amazon CloudFront and S3 for optimized content delivery.
+
+**Key Features:**
+- Configures S3 buckets to store and retrieve content efficiently.
+- Sets up CloudFront distributions for fast content delivery with low latency.
+- Implements logging and monitoring to track CDN performance and usage.
+
+**Challenges:**
+- Managing permissions and ensuring secure access to the CDN.
+
+**Future Scope:** Expanding the CDN setup to include additional AWS services and enhance security measures.
+
+---
 
 ## Technologies Used 🛠️
 
-- **AWS Services:** CloudTrail, EventBridge, Lambda, DynamoDB, Resource Explorer, Resource Groups Tagging API, CodePipeline, CodeCommit, CodeBuild, SNS
+- **AWS Services:** CloudTrail, EventBridge, Lambda, DynamoDB, Resource Explorer, Resource Groups Tagging API, CodePipeline, CodeCommit, CodeBuild, SNS, CloudFront, S3
 - **Programming Languages:** Python, YAML
 - **Tools:** Terraform, AWS CLI, Git
 
