@@ -41,7 +41,7 @@ Each project reflects a commitment to excellence and innovation in cloud computi
 I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems from Northeastern University, expected to graduate in May 2024. I have a Bachelor of Technology in Computer Science from GITAM University, India.
 
 ### Professional Experience
-- **AWS Cloud Co-op at Alnylam Pharmaceuticals (Jan 2024 – Jun 2024)**:
+- **AWS Cloud Co-op at Alnylam Pharmaceuticals (Jan 2024 – Present)**:
   - Automated AWS resource tagging using Lambda Functions and Python, significantly increasing efficiency in infrastructure management.
   - Designed and implemented CI/CD pipelines using Docker and AWS CodePipeline, automating deployments and enhancing release quality.
   - Implemented a CDN setup for optimized content delivery and reduced latency for global users using AWS CloudFront and Lambda.
