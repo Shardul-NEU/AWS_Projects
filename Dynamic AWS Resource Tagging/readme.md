@@ -81,3 +81,6 @@ The auto-tagging feature was verified by inspecting the “CreatedBy” tag of t
 ---
 
 For more details, refer to the architecture diagram and additional configuration files included in this repository.
+
+
+Hi Norbert, I am reaching out to just catch up, I am in the last stage of my Co-Op here at Alnylam and I would like to thank you for the initial support and encouragement you had provided me with during the initial days of my co-op at alnylam. Though we didn't get a chnace to work together for a longer time, I really enjoyed the few interactions we had. I recently had a chance to share my work and learnings durign the co-op period with the entire organisation via a poster presentation. I would love for you to have a look at it and provide your feedback. Also attached is a github repository link that explains a detailed overview of all the projects I completed here on my Co-op, I would be really thankful if you went through this 5 minute read article. 

@@ -1,0 +1,187 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create a Lambda function that tags AWS resources based on specified criteria.
+
+Parameters:
+    
+  Region:
+    Type: String
+    Default: us-east-1,global,us-east-2
+    Description: Comma-separated list of regions to search for resources.
+  
+  TagKey:
+    Type: String
+    Default: CostCenter
+    Description: The key of the tag to search for and apply.
+  
+  TagValue:
+    Type: String
+    Default: 100082
+    Description: The value of the tag to search for and apply.
+  
+Resources:
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CostCenter-Autotagging-Role-CFStack
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ResourceTaggerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+
+  ResourceTaggerLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: CostCenter-Autotagging-lambda
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          REGIONS : !Ref Region
+          TAG_KEY: !Ref TagKey
+          TAG_VALUE: !Ref TagValue
+
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import logging
+          from botocore.exceptions import BotoCoreError, ClientError
+
+          # Initialize logging
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def search_resources_with_tag(region, tag_key, tag_value):
+              client = boto3.client('resource-explorer-2', region_name='us-east-1')
+              
+              query_string = f'-tag:{tag_key}={tag_value} -service:ssm'
+              
+              paginator = client.get_paginator('search')
+              response_iterator = paginator.paginate(
+                  QueryString=f'region:{region} {query_string}',
+                  PaginationConfig={
+                      'PageSize': 50
+                  }
+              )
+
+              resources = []
+              for page in response_iterator:
+                  for resource in page['Resources']:
+                      resources.append(resource['Arn'])
+              total_count = len(resources)
+              logger.info(f"Total Resources in {region} : {total_count}")
+              return resources
+
+          def tag_resources(region, resource_arns, tag_key, tag_value):
+              if region == 'global':
+                  region = 'us-east-1'
+              
+              client = boto3.client('resourcegroupstaggingapi', region_name=region)
+              
+              success_count = 0
+              error_count = 0
+              
+              for arn in resource_arns:
+                  try:
+                      client.tag_resources(
+                          ResourceARNList=[arn],
+                          Tags={tag_key: tag_value}
+                      )
+                      success_count += 1
+                  except ClientError as e:
+                      error_count += 1
+                      logger.error(f"Error tagging resource {arn} in region {region}: {str(e)}")
+              
+              return success_count, error_count
+
+          def lambda_handler(event, context):
+              # Fetch tag key and value from environment variables
+              tag_key = os.getenv('TAG_KEY', 'CostCenter')
+              tag_value = os.getenv('TAG_VALUE')
+              regions = os.getenv('REGIONS', 'us-east-1,global').split(',')
+
+              total_resources_found = 0
+              total_successfully_tagged = 0
+              total_errors = 0
+
+              for region in regions:
+                  logger.info(f"Processing region: {region}")
+
+                  # Search for resources with the given tag key and value
+                  resources = search_resources_with_tag(region, tag_key, tag_value)
+                  resource_count = len(resources)
+                  total_resources_found += resource_count
+
+                  if resources:
+                      # Tag resources if found
+                      success_count, error_count = tag_resources(region, resources, tag_key, tag_value)
+                      total_successfully_tagged += success_count
+                      total_errors += error_count
+                  else:
+                      logger.info(f"No resources found without the specified tag in region {region}.")
+              
+              # Return the counts of all resources found, successfully tagged, and errors
+              return {
+                  'TotalResourcesFound': total_resources_found,
+                  'TotalSuccessfullyTagged': total_successfully_tagged,
+                  'TotalErrors': total_errors
+              }
+      Runtime: python3.12
+      Timeout: 900  
+
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: cc-autotagging-SchedulerRole-CFStack
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - events.amazonaws.com
+                - scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EventBridgeInvokeLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt ResourceTaggerLambdaFunction.Arn
+
+  MyEventBridgeScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: CostCenter-Autotagging-Schedule-CFStack
+      Description: This schedule triggers the Lambda function at specified intervals.
+      ScheduleExpression: cron(00 20 ? * SAT *)
+      ScheduleExpressionTimezone: America/New_York
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      State: ENABLED
+      Target:
+        Arn: !GetAtt ResourceTaggerLambdaFunction.Arn
+        RoleArn: !GetAtt EventBridgeRole.Arn
+
+Outputs:
+  
+  LambdaFunctionArn:
+    Description: "ARN of the Lambda function"
+    Value: !GetAtt ResourceTaggerLambdaFunction.Arn
+  
+  LambdaExecutionRoleArn:
+    Description: "ARN of the IAM role used by the Lambda function"
+    Value: !GetAtt LambdaExecutionRole.Arn

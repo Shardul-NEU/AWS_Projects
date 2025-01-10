@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create a VPC with 4 subnets, a route table, and a security group for the account alnylam-ct-codex.
+
+Resources:
+  AlnylamCTCodexVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.110.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-vpc'
+
+  AlnylamCTCodexSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref AlnylamCTCodexVPC
+      CidrBlock: '10.110.1.0/24'
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-subnet-1'
+
+  AlnylamCTCodexSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref AlnylamCTCodexVPC
+      CidrBlock: '10.110.2.0/24'
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-subnet-2'
+
+  AlnylamCTCodexSubnet3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref AlnylamCTCodexVPC
+      CidrBlock: '10.110.3.0/24'
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-subnet-3'
+
+  AlnylamCTCodexSubnet4:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref AlnylamCTCodexVPC
+      CidrBlock: '10.110.4.0/24'
+      AvailabilityZone: !Select [ 3, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-subnet-4'
+
+  AlnylamCTCodexRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref AlnylamCTCodexVPC
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-route-table'
+
+  AlnylamCTCodexSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AlnylamCTCodexSubnet1
+      RouteTableId: !Ref AlnylamCTCodexRouteTable
+
+  AlnylamCTCodexSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AlnylamCTCodexSubnet2
+      RouteTableId: !Ref AlnylamCTCodexRouteTable
+
+  AlnylamCTCodexSubnet3RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AlnylamCTCodexSubnet3
+      RouteTableId: !Ref AlnylamCTCodexRouteTable
+
+  AlnylamCTCodexSubnet4RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AlnylamCTCodexSubnet4
+      RouteTableId: !Ref AlnylamCTCodexRouteTable
+
+  AlnylamCTCodexSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security group for alnylam-ct-codex'
+      VpcId: !Ref AlnylamCTCodexVPC
+      Tags:
+        - Key: Name
+          Value: 'alnylam-ct-codex-sg'
+      SecurityGroupIngress:
+        - IpProtocol: -1  # -1 means all protocols
+          FromPort: -1    # -1 means all ports
+          ToPort: -1      # -1 means all ports
+          CidrIp: '192.168.0.0/16'
+        - IpProtocol: -1  # -1 means all protocols
+          FromPort: -1    # -1 means all ports
+          ToPort: -1      # -1 means all ports
+          CidrIp: '10.0.0.0/8'
+
+Outputs:
+  VpcId:
+    Description: 'VPC ID'
+    Value: !Ref AlnylamCTCodexVPC
+
+  Subnet1Id:
+    Description: 'Subnet 1 ID'
+    Value: !Ref AlnylamCTCodexSubnet1
+
+  Subnet2Id:
+    Description: 'Subnet 2 ID'
+    Value: !Ref AlnylamCTCodexSubnet2
+
+  Subnet3Id:
+    Description: 'Subnet 3 ID'
+    Value: !Ref AlnylamCTCodexSubnet3
+
+  Subnet4Id:
+    Description: 'Subnet 4 ID'
+    Value: !Ref AlnylamCTCodexSubnet4
+
+  RouteTableId:
+    Description: 'Route Table ID'
+    Value: !Ref AlnylamCTCodexRouteTable
+
+  SecurityGroupId:
+    Description: 'Security Group ID'
+    Value: !Ref AlnylamCTCodexSecurityGroup
