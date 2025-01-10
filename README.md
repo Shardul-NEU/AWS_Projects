@@ -68,7 +68,7 @@ I am Shardul Deshmukh, currently pursuing a Master’s in Information Systems fr
 
 ### Resume 📄
 
-For a detailed overview of my skills and experiences, you can view my resume [here](./Shardul-Deshmukh-Resume.pdf).
+For a detailed overview of my skills and experiences, you can view my resume [here](./Shardul_Resume.pdf).
 
 ---
 
